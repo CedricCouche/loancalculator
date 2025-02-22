@@ -1,4 +1,4 @@
-#!/home/cedric/Documents/loancalculator/.venv/bin/python
+#!/home/cedric/Documents/loancalculator/.venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
