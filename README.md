@@ -19,7 +19,7 @@
 - draw_graph(filename) : return a graph containing overall shape of the loan, stored in a png file
 - generate_summary_pdf(FileName) : return a loan schedule and some general info about the loan. Main method of this project.
 
-Secondary methods : aimed to be used 
+Secondary methods : aimed to be used by other methods
 - _get_loan_schedule() : return 4 differents list containing periods, periodic interest, periodic principal, periodic payment
 - _drawMyRuler() : draw x & y landmarks on the PDF page, visual help to position objets
 - _get_summary() : built summary table used in generate_summary_pdf() method
