@@ -22,7 +22,7 @@ from reportlab.platypus import Table, TableStyle, SimpleDocTemplate
 
 
 class Loan:
-    def __init__(self, capital: int, annual_rate: float, years: int, periods_per_year: int):
+    def __init__(self, capital: int = 1000, annual_rate: float = 0.01, years: int = 5, periods_per_year: int = 12):
         """
         Initialize the Loan object with the necessary parameters.
 
@@ -38,10 +38,27 @@ class Loan:
         self.periods_per_year = periods_per_year
         self.nper = years * periods_per_year  # Total number of payments
         self.periodic_rate = annual_rate / periods_per_year  # Periodic interest rate
-        self.pmt = -1 * ( (self.capital * self.periodic_rate) / (1 - (1 + self.periodic_rate) ** (-self.nper)) )
+        self.pmt = self.get_pmt()
+        self.list_period, self.list_ipmt, self.list_ppmt, self.list_pmt = self._get_loan_schedule()
         
+        
+    def get_pmt(self) -> float:
+        """
+        Calculate payment for a specific period.
 
-    def get_ipmt(self, period: int) -> float:
+        Args:
+            period (int): The payment period number.
+
+        Returns:
+            float: payment for the given period.
+        """
+        
+        pmt = -1 * ( (self.capital * self.periodic_rate) / (1 - (1 + self.periodic_rate) ** (-self.nper)) )
+        
+        return pmt
+
+
+    def get_ipmt(self, period: int = 1) -> float:
         """
         Calculate the interest payment for a specific period.
 
@@ -58,7 +75,7 @@ class Loan:
         return ipmt
     
 
-    def get_ppmt(self, period: int) -> float:
+    def get_ppmt(self, period: int=1) -> float:
         """
         Calculate the principal payment for a specific period.
 
@@ -128,12 +145,10 @@ class Loan:
             int: period when cumulated interest goes beyond the threshold
         """
         
-        list_period, list_ipmt, _, _ = self._get_loan_schedule()
+        ipmt_target = np.sum(self.list_ipmt) * threshold
+        ipmt_cum = np.cumsum(self.list_ipmt)
         
-        ipmt_target = np.sum(list_ipmt) * threshold
-        ipmt_cum = np.cumsum(list_ipmt)
-        
-        for p, i in zip(list_period, ipmt_cum):
+        for p, i in zip(self.list_period, ipmt_cum):
             
             if i > ipmt_target:
                 result = p
@@ -158,17 +173,15 @@ class Loan:
         try : 
             
             # Static variables that requires some formatting (to have clearer code)
-            capital = self.capital 
+            capital = '{:,.2f}'.format( self.capital )
             annual_rate = str( np.round(self.annual_rate * 100, 2) ) + " %" 
             periods_per_year = self.periods_per_year 
             
-            # Get calculated values
-            list_period, list_ipmt, list_ppmt, list_pmt = self._get_loan_schedule()
              
             # Calculated variable that requires some formatting (to have clearer code)
-            total_interest_paid = '{:,.2f}'.format( np.round( np.sum(list_ipmt),2) )
-            total_capital_paid = '{:,.2f}'.format( np.round(np.sum(list_ppmt),2) )
-            total_paid = '{:,.2f}'.format( np.round(np.sum(list_pmt), 2) )
+            total_interest_paid = '{:,.2f}'.format( np.round( np.sum( self.list_ipmt ),2 ) )
+            total_capital_paid = '{:,.2f}'.format( np.round(np.sum( self.list_ppmt ),2 ) )
+            total_paid = '{:,.2f}'.format( np.round(np.sum( self.list_pmt ), 2 ) )
             
             # Built list
             table_list.append( ["Main characteristics", "Value"] )
@@ -198,27 +211,25 @@ class Loan:
             str: 
         """
         
-        list_period, list_ipmt, list_ppmt, list_pmt = self._get_loan_schedule()
-        
         try : 
             
             # Find the index corresponding to the period entered
-            for i, per in enumerate(list_period):
-                if list_period[i] == period:
+            for i, per in enumerate(self.list_period):
+                if self.list_period[i] == period:
                     period_idx = i  
             
             
             # Situation at period
-            period_at_period = list_period[period_idx]
-            ipmt_sum_at_period = np.sum(list_ipmt[:period_idx+1]) 
-            ppmt_sum_at_period = np.sum(list_ppmt[:period_idx+1]) 
-            pmt_sum_at_period = np.sum(list_pmt[:period_idx+1]) 
+            period_at_period = self.list_period[period_idx]
+            ipmt_sum_at_period = np.sum( self.list_ipmt[:period_idx+1] ) 
+            ppmt_sum_at_period = np.sum( self.list_ppmt[:period_idx+1] ) 
+            pmt_sum_at_period = np.sum( self.list_pmt[:period_idx+1] ) 
             
             # Total of series
-            period_max = max(list_period)
-            ipmt_sum_total = np.sum(list_ipmt) 
-            ppmt_sum_total = np.sum(list_ppmt) 
-            pmt_sum_total = np.sum(list_pmt) 
+            period_max = max( self.list_period )
+            ipmt_sum_total = np.sum( self.list_ipmt ) 
+            ppmt_sum_total = np.sum( self.list_ppmt ) 
+            pmt_sum_total = np.sum( self.list_pmt ) 
             
             # Display results
             print('Situation of loan at period : ', period_at_period)
@@ -232,7 +243,7 @@ class Loan:
             print('total capital :', np.round( ppmt_sum_total,2))
         
         except UnboundLocalError as e1:
-            return print('Uncorrect period, available periods are : [', min(list_period),',', max(list_period), ']')
+            return print('Uncorrect period, available periods are : [', min( self.list_period ),',', max( self.list_period ), ']')
 
 
     def get_formated_depreciation_table(self, table_size:int=12):
@@ -253,9 +264,6 @@ class Loan:
         locale.setlocale(locale.LC_ALL, '')
         
         
-        # temp
-        per, ipmt, ppmt, pmt = self._get_loan_schedule()
-        
         # Headers
         headers_FR = ["Echéance", "Mensualité\néchéance", "Capital\néchéance", "Intérêts\néchéance", "Capital\ncumulé", "Intérêts\ncumulé", "Capital\nrestant", "Intérêts\nrestants"]
         headers_ENG = ["Period", "Payment\nPeriodic", "Principal\nPeriodic", "Interest\nPeriodic", "Principal\nCumulated", "Interest\nCumulated", "Principal\nremaining", "Interest\nremaining"]
@@ -265,22 +273,22 @@ class Loan:
         loan_table = []
 
         # Table size definition
-        list_per_cut = np.arange(0, np.max(per), table_size)
+        list_per_cut = np.arange(0, np.max( self.list_period ), table_size)
         period_start = 0
         period_end = 0
         
         # Loop
-        for i in range(min(per), max(per) ):
+        for i in range(min( self.list_period ), max( self.list_period ) ):
             
             period_start = period_end
             
-            periodic_payment = pmt[i]
-            principal_periodic = ppmt[i]
-            interest_periodic = ipmt[i]
-            principal_cumulated = np.sum(ppmt[:i+1])
-            interest_cumulated = np.sum(ipmt[:i+1])
-            principal_remaining = np.sum(ppmt) - principal_cumulated
-            interest_remaining = np.sum(ipmt) - interest_cumulated
+            periodic_payment = self.list_pmt[i]
+            principal_periodic = self.list_ppmt[i]
+            interest_periodic = self.list_ipmt[i]
+            principal_cumulated = np.sum( self.list_ppmt[:i+1] )
+            interest_cumulated = np.sum( self.list_ipmt[:i+1] )
+            principal_remaining = np.sum( self.list_ppmt ) - principal_cumulated
+            interest_remaining = np.sum( self.list_ipmt ) - interest_cumulated
 
             # Built of the periodic line
             periodic_line = [
@@ -307,16 +315,16 @@ class Loan:
                 # Add of the periodic line inside the table
                 loan_table.append(periodic_line)
 
-                print(tabulate(loan_table, headers = headers_FR, tablefmt="fancy_grid"))
-                print("Total périodes : ",period_start, " - ", period_end, '-' * 78)
-                print("Capital cumulé : ", locale._format('%.2f', principal_cumulated ))
-                print("Intérêts cumulés : ", locale._format('%.2f', interest_cumulated ))
+                print(tabulate( loan_table, headers = headers_ENG, tablefmt = "fancy_grid" ) )
+                print("Total period : ",period_start, " - ", period_end, '-' * 78)
+                print("Cumulated Capital : ", locale._format( '%.2f', principal_cumulated ) )
+                print("Cumulated Interests : ", locale._format( '%.2f', interest_cumulated ) )
                 print('-' * 105)
                 print(" ")
                 
                 loan_table = []
 
-        return "End"
+
     
     
     def _drawMyRuler(self, pdf):
@@ -359,10 +367,8 @@ class Loan:
         
         
         # Main data
-        list_period, list_ipmt, list_ppmt, list_pmt = self._get_loan_schedule()
-        
-        ipmt_max = int(np.round(np.sum(list_ipmt)))
-        ppmt_max = int(np.round(np.sum(list_ppmt)))
+        ipmt_max = int(np.round(np.sum( self.list_ipmt )))
+        ppmt_max = int(np.round(np.sum( self.list_ppmt )))
         ipmt_25 = int(np.round(ipmt_max * 0.25 , 0))
         ipmt_50 = int(np.round(ipmt_max * 0.5 , 0))
         ipmt_75 = int(np.round(ipmt_max * 0.75 , 0))
@@ -374,11 +380,12 @@ class Loan:
         period_for_cum_ipmt_50 = self.get_period_for_targeted_cumulated_interest(0.5) 
         period_for_cum_ipmt_75 = self.get_period_for_targeted_cumulated_interest(0.75) 
 
+
         # Graph
         fig, ax = plt.subplots(figsize = ( 12 , 10 ) )
 
-        ax.plot(np.cumsum(list_ipmt), label='Cumulated interest', alpha=0.5, linewidth=4, color=colors[1])
-        ax.plot(np.cumsum(list_ppmt), label='Cumulated capital', alpha=0.8, linewidth=4, color=colors[0])
+        ax.plot(np.cumsum( self.list_ipmt ), label='Cumulated interest', alpha=0.5, linewidth=4, color=colors[1])
+        ax.plot(np.cumsum( self.list_ppmt ), label='Cumulated capital', alpha=0.8, linewidth=4, color=colors[0])
         
         ax.axvline(x = period_for_cum_ipmt_25, color='#D3D3D3', linestyle='--')
         ax.axvline(x = period_for_cum_ipmt_50, color='#D3D3D3', linestyle='--')
@@ -417,8 +424,7 @@ class Loan:
         plt.legend()
         plt.title('Loan composition over time')
         plt.savefig(filename)
-        
-    
+         
     
     
     def generate_summary_pdf(self, table_size:int=12, FileName: str = "loan_summary.pdf"):
@@ -437,9 +443,6 @@ class Loan:
         # Headers
         headers_ENG = ["Period", "Payment\nPeriodic", "Principal\nPeriodic", "Interest\nPeriodic", "Principal\nCumulated", "Interest\nCumulated", "Principal\nremaining", "Interest\nremaining"]
 
-
-        # Main data
-        list_period, list_ipmt, list_ppmt, list_pmt = self._get_loan_schedule()
         
         # First Initialization of the list
         loan_table = []
@@ -448,21 +451,17 @@ class Loan:
         
 
         # Table size definition
-        period_chunk_list = np.arange(0, np.max(list_period), table_size).tolist()
+        period_chunk_list = np.arange(0, np.max( self.list_period ), table_size).tolist()
         period_chunk_list.pop(0)
         
         
         # Add of the last period in the case number of period is not a multiple of table_size
-        if np.max(list_period) > np.max(period_chunk_list):
-            period_chunk_list.append((np.max(list_period)).tolist())
+        if np.max( self.list_period ) > np.max(period_chunk_list):
+            period_chunk_list.append((np.max( self.list_period )).tolist())
         
         
         table_counter = 0
         table_dict = {}
-        
-        
-        period_min = min(list_period) 
-        period_max = max(list_period) +1
         
         
         #---------------------------------------------------------------------------------------#
@@ -471,18 +470,18 @@ class Loan:
                    
                    
         # Loop to build tables
-        for idx in range( period_min, period_max ):
+        for idx in range( min(self.list_period) , max(self.list_period) +1 ):
             
             i = idx -1
             
-            period = list_period[i]
-            periodic_payment = list_pmt[i]
-            principal_periodic = list_ppmt[i]
-            interest_periodic = list_ipmt[i]
-            principal_cumulated = np.sum(list_ppmt[:i+1])
-            interest_cumulated = np.sum(list_ipmt[:i+1])
-            principal_remaining = np.sum(list_ppmt) - principal_cumulated
-            interest_remaining = np.sum(list_ipmt) - interest_cumulated
+            period = self.list_period[i]
+            periodic_payment = self.list_pmt[i]
+            principal_periodic = self.list_ppmt[i]
+            interest_periodic = self.list_ipmt[i]
+            principal_cumulated = np.sum( self.list_ppmt[:i+1] )
+            interest_cumulated = np.sum( self.list_ipmt[:i+1] )
+            principal_remaining = np.sum( self.list_ppmt ) - principal_cumulated
+            interest_remaining = np.sum( self.list_ipmt ) - interest_cumulated
 
         
             # Built of the periodic line
@@ -529,10 +528,10 @@ class Loan:
         # Pages number definition
         current_page = 1
         
-        if max(table_dict.keys()) % 2 == 0:
-            last_page = int(current_page + max(table_dict.keys()) / 2 + 1)
+        if max( table_dict.keys() ) % 2 == 0:
+            last_page = int(current_page + max( table_dict.keys() ) / 2 + 1)
         else:
-            last_page = int(current_page + max(table_dict.keys()) // 2 + 2)
+            last_page = int(current_page + max( table_dict.keys() ) // 2 + 2)
         
         
         # Temp : utils for design phase
@@ -568,12 +567,12 @@ class Loan:
 
         # First page header
         pdf.setFont("Helvetica-Bold", 16)
-        pdf.drawCentredString(width/2, height-75, "Loan Amortization Schedule")
+        pdf.drawCentredString(width/2, height-75, "Loan Schedule")
         
 
         # First page : display summary
         pdf.setFont("Helvetica-Bold", 12)
-        pdf.drawString(75, height-150, "Summary of loan")
+        pdf.drawString(75, height-150, "Summary of the loan")
         pdf.setFont("Helvetica", 12)
         
         summary_list = self._get_summary()
@@ -585,7 +584,7 @@ class Loan:
 
         # First page : display graph
         graph_name = 'my-graph.png'
-        self.draw_graph(filename=graph_name)
+        self.draw_graph(filename = graph_name)
         pdf.drawImage(graph_name, x = 25, y = height-750, width = width-50, height = 400)
         
         
@@ -597,7 +596,7 @@ class Loan:
         for table_id in table_dict.keys():
             
             if table_id % 2 == 0:
-                table = Table(table_dict[table_id])
+                table = Table( table_dict[table_id] )
                 table.setStyle(style_02)
         
                 # Change page
