@@ -118,7 +118,7 @@ class Loan:
         return list_per, list_ipmt, list_ppmt, list_pmt
 
 
-    def get_basic_info(self):
+    def get_basic_info(self) -> None:
         """ Return the basic parameters of the loan
         
         """
@@ -133,7 +133,7 @@ class Loan:
         print('Total interest paid : ')
         
         
-    def get_period_for_targeted_cumulated_interest(self, threshold:float=0.5):
+    def get_period_for_targeted_cumulated_interest(self, threshold:float=0.5) -> int:
         """ Return the period number corresponding a cumulated target value
 
         Args:
@@ -157,7 +157,7 @@ class Loan:
         return result
 
 
-    def _get_summary(self):
+    def _get_summary(self) -> list:
         """ Return the main charateristics of the loan at a given period number.
             This summary wil be used for the first table of the PDF file.
         Args:
@@ -201,7 +201,7 @@ class Loan:
 
             
             
-    def get_situation_at_period(self, period:int=1):
+    def get_situation_at_period(self, period:int=1) -> None:
         """ Return the main charateristics of the loan at a given period number
 
         Args:
@@ -246,7 +246,7 @@ class Loan:
             return print('Uncorrect period, available periods are : [', min( self.list_period ),',', max( self.list_period ), ']')
 
 
-    def get_formated_depreciation_table(self, table_size:int=12):
+    def get_formated_depreciation_table(self, table_size:int=12) -> None:
         """ Return a formated depreciation schedule
 
         Args:
@@ -327,7 +327,7 @@ class Loan:
 
     
     
-    def _drawMyRuler(self, pdf):
+    def _drawMyRuler(self, pdf) -> None:
         """Display landmark to ease object placement in PDF page
 
         Args:
@@ -351,12 +351,12 @@ class Loan:
     
     
     
-    def draw_graph(self, filename:str='my-graph.png'):
-        
-        """ Draw a graph of periodic figures
+    def draw_graph(self, filename:str='my-graph.png') -> None:
+        """ 
+        Draw a graph of periodic figures
 
         Args:
-            none
+            filename (str) : path, filename with file extension where graph will be stored. Example : 'my-graph.png'
             
         return : graph
         """ 
@@ -427,7 +427,7 @@ class Loan:
          
     
     
-    def generate_summary_pdf(self, table_size:int=12, FileName: str = "loan_summary.pdf"):
+    def generate_summary_pdf(self, table_size:int=12, FileName: str = "loan_summary.pdf") -> None:
         """
         Generate a PDF summary of the loan details.
         
